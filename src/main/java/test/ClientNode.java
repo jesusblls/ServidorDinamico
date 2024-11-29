@@ -55,8 +55,16 @@ public class ClientNode extends Thread {
     @Override
     public void run() {
         try {
-            // Conectar a Hamachi (asume que Hamachi ya está configurado)
-            socketServidor = new Socket("hamachi_ip", 5000);
+            // Descubrir la IP del servidor automáticamente
+            String servidorIP = ServerDiscovery.obtenerIPDelServidor();
+            
+            if (servidorIP == null) {
+                System.out.println("No se pudo encontrar un servidor en la red.");
+                return;
+            }
+
+            // Conectar al servidor usando la IP descubierta
+            socketServidor = new Socket(servidorIP, 5000);
             
             // Enviar score de máquina
             DataOutputStream out = new DataOutputStream(socketServidor.getOutputStream());
@@ -78,7 +86,7 @@ public class ClientNode extends Thread {
                 }
             }).start();
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

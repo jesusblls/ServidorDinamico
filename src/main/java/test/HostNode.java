@@ -19,6 +19,8 @@ public class HostNode extends Thread {
     public HostNode() {
         systemInfo = new SystemInfo();
         calcularScoreMaquina();
+        
+        new ServerDiscovery.ServidorDescubrimiento(2345).start();
     }
 
     private void calcularScoreMaquina() {
