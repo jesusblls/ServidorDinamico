@@ -5,23 +5,31 @@ import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Host {
+public class Host implements Runnable {
     private static List<ClientHandler> clients = new ArrayList<>();
     private static int currentHostScore = 0;
+    private boolean running = true;
 
-    public void start() throws IOException {
-        currentHostScore = SystemEvaluator.calculateSystemScore();
-        System.out.println("Iniciando como Host con puntaje: " + currentHostScore);
+    @Override
+    public void run() {
+        try {
+            currentHostScore = SystemEvaluator.calculateSystemScore();
+            System.out.println("Iniciando como Host con puntaje: " + currentHostScore);
 
-        ServerSocket serverSocket = new ServerSocket(5432);
-        System.out.println("Host escuchando en el puerto 12345");
+            ServerSocket serverSocket = new ServerSocket(5432);
+            System.out.println("Host escuchando en el puerto 5432");
 
-        while (true) {
-            Socket clientSocket = serverSocket.accept();
-            System.out.println("Nuevo cliente conectado: " + clientSocket.getInetAddress());
-            ClientHandler clientHandler = new ClientHandler(clientSocket);
-            clients.add(clientHandler);
-            new Thread(clientHandler).start();
+            while (running) {
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("Nuevo cliente conectado: " + clientSocket.getInetAddress());
+                ClientHandler clientHandler = new ClientHandler(clientSocket);
+                clients.add(clientHandler);
+                new Thread(clientHandler).start(); // Cada cliente tiene su propio hilo
+            }
+
+            serverSocket.close(); // Cerrar el servidor cuando se detiene
+        } catch (IOException e) {
+            System.out.println("Error en el host: " + e.getMessage());
         }
     }
 
@@ -30,13 +38,21 @@ public class Host {
             System.out.println("Un cliente tiene mejores prestaciones. Cambiando de host...");
             currentHostScore = clientScore;
 
-            // Informar a todos los clientes que el host ha cambiado
-            for (ClientHandler client : clients) {
-                client.notifyHostChange(clientSocket.getInetAddress().getHostAddress());
-            }
-
-            System.out.println("Nuevo host: " + clientSocket.getInetAddress().getHostAddress());
+            // Esperar antes de notificar el cambio de host
+            notifyClientsAboutNewHost(clientSocket.getInetAddress().getHostAddress());
         }
+    }
+
+    private static void notifyClientsAboutNewHost(String newHostAddress) {
+        for (ClientHandler client : clients) {
+            client.notifyHostChange(newHostAddress);
+        }
+        System.out.println("Todos los clientes han sido notificados del nuevo host: " + newHostAddress);
+    }
+
+    public void detener() {
+        running = false;
+        System.out.println("Servidor detenido.");
     }
 
     private static class ClientHandler implements Runnable {
@@ -52,7 +68,6 @@ public class Host {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
                 out = new PrintWriter(socket.getOutputStream(), true);
 
-                // Recibir y procesar las prestaciones del cliente
                 String clientInfo = in.readLine();
                 System.out.println("Información del cliente: " + clientInfo);
 
@@ -71,3 +86,4 @@ public class Host {
         }
     }
 }
+

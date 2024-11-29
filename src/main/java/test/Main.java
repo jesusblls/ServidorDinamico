@@ -12,12 +12,12 @@ public class Main {
         try {
             if (role.equals("0")) {
                 Host host = new Host();
-                host.start();
+                host.run();
             } else if (role.equals("1")) {
                 System.out.println("Ingresa la dirección IP del host:");
                 String hostAddress = scanner.nextLine().trim();
                 Client client = new Client(hostAddress);
-                client.start();
+                client.run();
             } else {
                 System.out.println("Entrada no válida. Reinicia el programa e intenta de nuevo.");
             }
