@@ -150,7 +150,7 @@ public class HostNode extends Thread {
             // Esperar un momento para asegurarse de que el nuevo host esté listo
             Thread.sleep(2000);
             // Iniciar el proceso de cliente para reconectar al nuevo host
-            iniciarProcesoCliente();
+            iniciarProcesoCliente(nuevoHost.getSocketCliente().getInetAddress().getHostAddress());
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
@@ -166,11 +166,11 @@ public class HostNode extends Thread {
         }
     }
 
-    private void iniciarProcesoCliente() {
+    private void iniciarProcesoCliente(String nuevaIp) {
         new Thread(() -> {
             try {
                 // Iniciar el proceso de cliente
-                ClientNode clientNode = new ClientNode();
+                ClientNode clientNode = new ClientNode(nuevaIp);
                 clientNode.start();
             } catch (Exception e) {
                 e.printStackTrace();

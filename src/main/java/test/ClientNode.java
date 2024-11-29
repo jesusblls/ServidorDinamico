@@ -17,11 +17,17 @@ public class ClientNode extends Thread {
     private double scoreMaquina;
     private SystemInfo systemInfo;
     private String ipLocal;
+    private String servidorIP;
 
     public ClientNode() {
         systemInfo = new SystemInfo();
         calcularScoreMaquina();
         ipLocal = obtenerIPLocal();
+    }
+
+    public ClientNode(String servidorIP) {
+        this();
+        this.servidorIP = servidorIP;
     }
 
     private void calcularScoreMaquina() {
@@ -70,8 +76,10 @@ public class ClientNode extends Thread {
     @Override
     public void run() {
         try {
-            // Descubrir la IP del servidor automáticamente
-            String servidorIP = ServerDiscovery.obtenerIPDelServidor();
+            // Descubrir la IP del servidor automáticamente si no se proporciona
+            if (servidorIP == null) {
+                servidorIP = ServerDiscovery.obtenerIPDelServidor();
+            }
             
             if (servidorIP == null) {
                 System.out.println("No se pudo encontrar un servidor en la red.");
