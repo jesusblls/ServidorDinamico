@@ -129,17 +129,13 @@ public class HostNode extends Thread {
         // Lógica para migrar todos los clientes al nuevo host
         System.out.println("Migrando host a: " + nuevoHost.getSocketCliente().getInetAddress());
         for (ClientConnection cliente : clientes) {
-            if (cliente != nuevoHost) {
-                enviarMensajeMigracion(cliente, nuevoHost.getSocketCliente().getInetAddress());
-            }
+            enviarMensajeMigracion(cliente, nuevoHost.getSocketCliente().getInetAddress());
         }
         // Cerrar el servidor actual y reconectar al nuevo host
         try {
             serverSocket.close();
             // Interrumpir el hilo del anterior host
             this.interrupt();
-            // Reconectar al nuevo host
-            reconectarNuevoHost(nuevoHost.getSocketCliente().getInetAddress().getHostAddress());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -150,18 +146,6 @@ public class HostNode extends Thread {
             DataOutputStream out = new DataOutputStream(cliente.getSocketCliente().getOutputStream());
             out.writeUTF("MIGRAR_HOST:" + nuevaIp.getHostAddress());
             out.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void reconectarNuevoHost(String nuevaIp) {
-        try {
-            Socket nuevoSocket = new Socket(nuevaIp, 5000);
-            DataOutputStream out = new DataOutputStream(nuevoSocket.getOutputStream());
-            out.writeDouble(scoreMaquina);
-            out.flush();
-            System.out.println("Reconectado al nuevo host en: " + nuevaIp);
         } catch (IOException e) {
             e.printStackTrace();
         }

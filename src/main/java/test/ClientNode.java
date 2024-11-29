@@ -110,6 +110,8 @@ public class ClientNode extends Thread {
         try {
             if (nuevaIp.equals(ipLocal)) {
                 System.out.println("Este cliente se ha convertido en el nuevo host.");
+                // Iniciar el nuevo host
+                new HostNode().start();
                 return;
             }
             socketServidor.close();
