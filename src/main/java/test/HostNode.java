@@ -1,9 +1,16 @@
 package test;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
-import java.util.concurrent.*;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
@@ -21,6 +28,10 @@ public class HostNode extends Thread {
         calcularScoreMaquina();
         
         new ServerDiscovery.ServidorDescubrimiento(2345).start();
+        
+        // Recalcular el puntaje del host periódicamente
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        scheduler.scheduleAtFixedRate(this::calcularScoreMaquina, 0, 1, TimeUnit.MINUTES);
     }
 
     private void calcularScoreMaquina() {
@@ -76,10 +87,20 @@ public class HostNode extends Thread {
     }
 
     public synchronized void verificarCambioHost(double scoreCliente, ClientConnection cliente) {
-        if (scoreCliente > scoreMaquina) {
-            // El cliente tiene mejores prestaciones, se convierte en nuevo host
-            System.out.println("Nuevo host seleccionado: " + cliente.getSocketCliente().getInetAddress());
-            migrarHost(cliente);
+        // Evaluar el puntaje del host y de todos los clientes
+        double mejorScore = scoreMaquina;
+        ClientConnection nuevoHost = null;
+
+        for (ClientConnection c : clientes) {
+            if (c.getScoreCliente() > mejorScore) {
+                mejorScore = c.getScoreCliente();
+                nuevoHost = c;
+            }
+        }
+
+        if (nuevoHost != null && nuevoHost != cliente) {
+            System.out.println("Nuevo host seleccionado: " + nuevoHost.getSocketCliente().getInetAddress());
+            migrarHost(nuevoHost);
         }
     }
 

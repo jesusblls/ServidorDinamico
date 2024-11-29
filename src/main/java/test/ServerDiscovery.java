@@ -1,7 +1,16 @@
 package test;
 
-import java.net.*;
-import java.io.*;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.Enumeration;
 
 public class ServerDiscovery {
@@ -205,22 +214,25 @@ public class ServerDiscovery {
 
         private String obtenerIPLocal() {
             try {
-                // Intentar obtener IP no loopback
+                // Intentar obtener IP de la interfaz de Hamachi
                 Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
                 while (interfaces.hasMoreElements()) {
                     NetworkInterface networkInterface = interfaces.nextElement();
-                    if (networkInterface.isLoopback() || !networkInterface.isUp()) {
+                    if (networkInterface.isLoopback() || !networkInterface.isUp() || networkInterface.isVirtual()) {
                         continue;
                     }
-
-                    for (InterfaceAddress interfaceAddress : networkInterface.getInterfaceAddresses()) {
-                        InetAddress ip = interfaceAddress.getAddress();
-                        if (ip instanceof Inet4Address && !ip.isLoopbackAddress()) {
-                            return ip.getHostAddress();
+        
+                    // Filtrar por nombre de interfaz que contenga "Hamachi"
+                    if (networkInterface.getName().contains("Hamachi")) {
+                        for (InterfaceAddress interfaceAddress : networkInterface.getInterfaceAddresses()) {
+                            InetAddress ip = interfaceAddress.getAddress();
+                            if (ip instanceof Inet4Address && !ip.isLoopbackAddress()) {
+                                return ip.getHostAddress();
+                            }
                         }
                     }
                 }
-                
+        
                 // Fallback a localhost si no se encuentra otra IP
                 return InetAddress.getLocalHost().getHostAddress();
             } catch (Exception e) {

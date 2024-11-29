@@ -1,7 +1,8 @@
 package test;
 
-import java.io.*;
-import java.net.*;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.net.Socket;
 
 public class ClientConnection extends Thread {
     private Socket socketCliente;
@@ -29,5 +30,9 @@ public class ClientConnection extends Thread {
 
     public Socket getSocketCliente() {
         return socketCliente;
+    }
+
+    public double getScoreCliente() {
+        return scoreCliente;
     }
 }

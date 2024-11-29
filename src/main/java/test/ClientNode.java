@@ -1,12 +1,15 @@
 package test;
 
-import java.io.*;
-import java.net.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.Socket;
+import java.util.List;
+
 import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.NetworkIF;
-import java.util.List;
 
 public class ClientNode extends Thread {
     private Socket socketServidor;
