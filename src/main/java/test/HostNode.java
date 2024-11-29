@@ -76,10 +76,18 @@ public class HostNode extends Thread {
             System.out.println("Host iniciado en puerto " + puerto);
     
             while (!isInterrupted()) {
-                Socket clienteSocket = serverSocket.accept();
-                ClientConnection nuevoCliente = new ClientConnection(clienteSocket, this);
-                clientes.add(nuevoCliente);
-                nuevoCliente.start();
+                try {
+                    Socket clienteSocket = serverSocket.accept();
+                    ClientConnection nuevoCliente = new ClientConnection(clienteSocket, this);
+                    clientes.add(nuevoCliente);
+                    nuevoCliente.start();
+                } catch (IOException e) {
+                    if (isInterrupted()) {
+                        System.out.println("Servidor interrumpido.");
+                        break;
+                    }
+                    e.printStackTrace();
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
