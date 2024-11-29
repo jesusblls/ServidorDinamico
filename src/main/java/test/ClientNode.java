@@ -128,7 +128,11 @@ public class ClientNode extends Thread {
             }
             if (hiloLectura != null && hiloLectura.isAlive()) {
                 hiloLectura.interrupt();
-                hiloLectura.join(2000); // Esperar un máximo de 2 segundos para que el hilo se interrumpa
+                try {
+                    hiloLectura.join(2000); // Esperar un máximo de 2 segundos para que el hilo se interrumpa
+                } catch (InterruptedException e) {
+                    System.out.println("Interrupción durante la espera del hilo de lectura: " + e.getMessage());
+                }
             }
             if (socketServidor != null && !socketServidor.isClosed()) {
                 socketServidor.close();
