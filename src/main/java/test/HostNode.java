@@ -74,7 +74,7 @@ public class HostNode extends Thread {
         try {
             serverSocket = new ServerSocket(puerto);
             System.out.println("Host iniciado en puerto " + puerto);
-
+    
             while (!isInterrupted()) {
                 Socket clienteSocket = serverSocket.accept();
                 ClientConnection nuevoCliente = new ClientConnection(clienteSocket, this);
@@ -83,6 +83,14 @@ public class HostNode extends Thread {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                if (serverSocket != null && !serverSocket.isClosed()) {
+                    serverSocket.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -128,6 +136,9 @@ public class HostNode extends Thread {
         // Cerrar el servidor actual y reconectar al nuevo host
         try {
             serverSocket.close();
+            // Interrumpir el hilo del anterior host
+            this.interrupt();
+            // Reconectar al nuevo host
             reconectarNuevoHost(nuevoHost.getSocketCliente().getInetAddress().getHostAddress());
         } catch (IOException e) {
             e.printStackTrace();
