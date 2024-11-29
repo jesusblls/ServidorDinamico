@@ -18,6 +18,7 @@ public class ClientNode extends Thread {
     private SystemInfo systemInfo;
     private String ipLocal;
     private String servidorIP;
+    private Thread hiloLectura;
 
     public ClientNode() {
         systemInfo = new SystemInfo();
@@ -94,20 +95,23 @@ public class ClientNode extends Thread {
             out.writeDouble(scoreMaquina);
 
             // Escuchar mensajes del servidor
-            new Thread(() -> {
+            hiloLectura = new Thread(() -> {
                 try {
                     DataInputStream in = new DataInputStream(socketServidor.getInputStream());
-                    while (true) {
+                    while (!Thread.currentThread().isInterrupted()) {
                         String mensaje = in.readUTF();
                         if (mensaje.startsWith("MIGRAR_HOST:")) {
-                            String nuevaIpMensaje = mensaje.split(":")[1];
-                            reconectarNuevoHost(nuevaIpMensaje);
+                            String nuevaIp = mensaje.split(":")[1];
+                            reconectarNuevoHost(nuevaIp);
                         }
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    if (!Thread.currentThread().isInterrupted()) {
+                        e.printStackTrace();
+                    }
                 }
-            }).start();
+            });
+            hiloLectura.start();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -122,6 +126,10 @@ public class ClientNode extends Thread {
                 new HostNode().start();
                 return;
             }
+            if (hiloLectura != null && hiloLectura.isAlive()) {
+                hiloLectura.interrupt();
+                hiloLectura.join();
+            }
             if (socketServidor != null && !socketServidor.isClosed()) {
                 socketServidor.close();
             }
@@ -132,10 +140,10 @@ public class ClientNode extends Thread {
             DataOutputStream out = new DataOutputStream(socketServidor.getOutputStream());
             out.writeDouble(scoreMaquina);
             // Reiniciar el hilo de escucha de mensajes del servidor
-            new Thread(() -> {
+            hiloLectura = new Thread(() -> {
                 try {
                     DataInputStream in = new DataInputStream(socketServidor.getInputStream());
-                    while (true) {
+                    while (!Thread.currentThread().isInterrupted()) {
                         String mensaje = in.readUTF();
                         if (mensaje.startsWith("MIGRAR_HOST:")) {
                             String nuevaIpMensaje = mensaje.split(":")[1];
@@ -143,9 +151,12 @@ public class ClientNode extends Thread {
                         }
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    if (!Thread.currentThread().isInterrupted()) {
+                        e.printStackTrace();
+                    }
                 }
-            }).start();
+            });
+            hiloLectura.start();
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
