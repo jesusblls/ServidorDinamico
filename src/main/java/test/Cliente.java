@@ -1,81 +1,86 @@
 package test;
 
 import java.net.*;
-import java.util.*;
 import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
-import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 public class Cliente implements Runnable {
     private static final int PORT = 12345;
+    private static final int PUERTO_DESCUBRIMIENTO = 2345;
+    private static String IPServidor = null;
 
     @Override
     public void run() {
         try {
-            // Obtener la IP del host automáticamente en la red de Hamachi
-            String hostIP = getHostIP();
-
-            if (hostIP == null) {
-                System.out.println("No se pudo encontrar un host en la red.");
+            // Intentar obtener la IP del servidor utilizando Broadcast UDP
+            obtenerIPDelServidor();
+            
+            if (IPServidor == null) {
+                System.out.println("No se pudo encontrar un servidor.");
                 return;
             }
 
-            // Conexión al host
-            Socket socket = new Socket(hostIP, PORT);
-            System.out.println("Conectado al Host en IP: " + hostIP);
+            // Conectarse al servidor con la IP obtenida
+            Socket socket = new Socket(IPServidor, PORT);
+            System.out.println("Conectado al servidor en IP: " + IPServidor);
 
             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
 
-            // Enviar el puntaje del cliente al host
+            // Enviar el puntaje del cliente al servidor
             out.writeObject(calcularPuntaje());
 
             out.close();
             socket.close();
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    // Método para obtener la IP del host automáticamente en la red de Hamachi
-    private String getHostIP() {
-        try {
-            // Obtener todas las interfaces de red disponibles en el sistema
-            Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+    // Método para realizar un Broadcast UDP para obtener la IP del servidor
+    private static void obtenerIPDelServidor() throws Exception {
+        InetAddress direccionBroadC = InetAddress.getByName("255.255.255.255");
 
-            while (networkInterfaces.hasMoreElements()) {
-                NetworkInterface networkInterface = networkInterfaces.nextElement();
+        // Crear el DatagramSocket para el mensaje UDP
+        DatagramSocket socket = new DatagramSocket();
 
-                // Filtramos interfaces de Hamachi (generalmente comienza con "ham")
-                if (networkInterface.getName().startsWith("ham")) {
-                    // Buscar una dirección IP asociada con esta interfaz
-                    for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
-                        InetAddress inetAddress = address.getAddress();
-                        if (inetAddress instanceof Inet4Address) {
-                            return inetAddress.getHostAddress(); // Devolver la IP del host de Hamachi
-                        }
-                    }
-                }
-            }
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
-        return null; // Si no se encuentra una IP de Hamachi
+        String mensajeDescubrimiento = "Servidor_Descubierto";
+
+        byte[] bytesMensaje = mensajeDescubrimiento.getBytes();
+
+        // Enviar el mensaje de Broadcast
+        DatagramPacket paquete = new DatagramPacket(bytesMensaje, bytesMensaje.length, direccionBroadC, PUERTO_DESCUBRIMIENTO);
+        System.out.println("Enviando mensaje de Broadcast para encontrar el servidor...");
+        socket.send(paquete);
+
+        // Preparación para recibir la respuesta del servidor
+        byte[] bufferRecibimiento = new byte[256];
+        DatagramPacket paqueteRespuesta = new DatagramPacket(bufferRecibimiento, bufferRecibimiento.length);
+
+        // Esperar a que el servidor responda
+        socket.receive(paqueteRespuesta);
+
+        // Convertir los datos recibidos en una dirección IP (String)
+        IPServidor = new String(paqueteRespuesta.getData(), 0, paqueteRespuesta.getLength());
+        System.out.println("Servidor encontrado en IP: " + IPServidor);
+
+        socket.close();
     }
 
-    // Calcular el puntaje basado en CPU y RAM
+    // Calcular el puntaje basado en el CPU y la memoria
     public static int calcularPuntaje() {
         SystemInfo si = new SystemInfo();
         CentralProcessor processor = si.getHardware().getProcessor();
         GlobalMemory memory = si.getHardware().getMemory();
 
-        // Obtenemos la carga de la CPU y la memoria
+        // Obtener la carga de la CPU y la memoria
         double cpuLoad = processor.getSystemCpuLoad(0);
-        double ram = memory.getTotal() / 1024.0 / 1024.0 / 1024.0; // GB
+        double ram = memory.getTotal() / 1024.0 / 1024.0 / 1024.0; // en GB
 
-        // Calcular un puntaje simple basado en CPU y RAM
+        // Calcular un puntaje simple basado en la CPU y RAM
         return (int) ((1 - cpuLoad) * 100 + ram * 10);
     }
 }
+
