@@ -2,62 +2,144 @@ package test;
 
 import java.net.*;
 import java.io.*;
+import java.util.Enumeration;
 
 public class ServerDiscovery {
-    private static String IPServidor = null;
     private static final int PUERTO_DESCUBRIMIENTO = 2345;
+    private static final int PUERTO_SERVIDOR = 5000;
 
     public static String obtenerIPDelServidor() throws Exception {
-        InetAddress direccionBroadcast = InetAddress.getByName("255.255.255.255");
+        // Intentar múltiples métodos de descubrimiento
         
-        try (DatagramSocket socket = new DatagramSocket()) {
-            socket.setBroadcast(true);
-            
-            String mensajeDescubrimiento = "Servidor_Descubierto";
-            byte[] bytesMensaje = mensajeDescubrimiento.getBytes();
-
-            // Enviar paquete de broadcast
-            DatagramPacket paquete = new DatagramPacket(
-                bytesMensaje, 
-                bytesMensaje.length, 
-                direccionBroadcast, 
-                PUERTO_DESCUBRIMIENTO
-            );
-            socket.send(paquete);
-            System.out.println("Mensaje de Broadcast enviado para encontrar el servidor");
-
-            // Preparar buffer para recibir respuesta
-            byte[] bufferRecibimiento = new byte[256];
-            DatagramPacket paqueteRespuesta = new DatagramPacket(
-                bufferRecibimiento, 
-                bufferRecibimiento.length
-            );
-
-            // Configurar timeout para evitar espera infinita
-            socket.setSoTimeout(5000); // 5 segundos de espera
-
-            try {
-                // Esperar respuesta del servidor
-                socket.receive(paqueteRespuesta);
-
-                // Convertir respuesta a IP del servidor
-                IPServidor = new String(
-                    paqueteRespuesta.getData(), 
-                    0, 
-                    paqueteRespuesta.getLength()
-                ).trim();
-
-                System.out.println("Servidor encontrado en IP: " + IPServidor);
-                return IPServidor;
-
-            } catch (SocketTimeoutException e) {
-                System.out.println("No se encontró servidor en la red.");
-                return null;
-            }
+        // Método 1: Broadcast UDP
+        String ipPorBroadcast = descubrirPorBroadcast();
+        if (ipPorBroadcast != null) {
+            return ipPorBroadcast;
         }
+
+        // Método 2: Escaneo de interfaces de red
+        String ipPorInterfaz = descubrirPorInterfaces();
+        if (ipPorInterfaz != null) {
+            return ipPorInterfaz;
+        }
+
+        System.out.println("No se pudo descubrir el servidor por ningún método.");
+        return null;
     }
 
-    // Método para el lado del servidor que responde al descubrimiento
+    private static String descubrirPorBroadcast() {
+        try {
+            // Obtener todas las interfaces de red
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface networkInterface = interfaces.nextElement();
+                
+                // Saltar interfaces que no estén activas o sean loopback
+                if (!networkInterface.isUp() || networkInterface.isLoopback()) {
+                    continue;
+                }
+
+                // Buscar dirección de broadcast
+                for (InterfaceAddress interfaceAddress : networkInterface.getInterfaceAddresses()) {
+                    InetAddress broadcast = interfaceAddress.getBroadcast();
+                    if (broadcast == null) continue;
+
+                    try (DatagramSocket socket = new DatagramSocket()) {
+                        socket.setBroadcast(true);
+                        socket.setSoTimeout(5000); // 5 segundos de timeout
+
+                        String mensajeDescubrimiento = "Servidor_Descubierto";
+                        byte[] bytesMensaje = mensajeDescubrimiento.getBytes();
+
+                        DatagramPacket paquete = new DatagramPacket(
+                            bytesMensaje, 
+                            bytesMensaje.length, 
+                            broadcast, 
+                            PUERTO_DESCUBRIMIENTO
+                        );
+                        socket.send(paquete);
+                        System.out.println("Enviando broadcast por " + networkInterface.getName() + 
+                                           " a dirección: " + broadcast.getHostAddress());
+
+                        // Preparar buffer para recibir respuesta
+                        byte[] bufferRecibimiento = new byte[256];
+                        DatagramPacket paqueteRespuesta = new DatagramPacket(
+                            bufferRecibimiento, 
+                            bufferRecibimiento.length
+                        );
+
+                        // Intentar recibir respuesta
+                        socket.receive(paqueteRespuesta);
+
+                        // Convertir respuesta a IP del servidor
+                        String ipServidor = new String(
+                            paqueteRespuesta.getData(), 
+                            0, 
+                            paqueteRespuesta.getLength()
+                        ).trim();
+
+                        System.out.println("Servidor encontrado: " + ipServidor);
+                        return ipServidor;
+
+                    } catch (SocketTimeoutException e) {
+                        System.out.println("Timeout en interfaz " + networkInterface.getName());
+                    } catch (IOException e) {
+                        System.out.println("Error en interfaz " + networkInterface.getName() + ": " + e.getMessage());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error en descubrimiento por broadcast: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private static String descubrirPorInterfaces() {
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface networkInterface = interfaces.nextElement();
+                
+                if (!networkInterface.isUp() || networkInterface.isLoopback()) {
+                    continue;
+                }
+
+                for (InterfaceAddress interfaceAddress : networkInterface.getInterfaceAddresses()) {
+                    InetAddress ip = interfaceAddress.getAddress();
+                    
+                    // Ignorar IPv6 y localhost
+                    if (ip.isLoopbackAddress() || ip instanceof Inet6Address) {
+                        continue;
+                    }
+
+                    // Intentar conectar al puerto del servidor
+                    String baseIP = ip.getHostAddress().substring(0, ip.getHostAddress().lastIndexOf(".") + 1);
+                    
+                    for (int i = 1; i <= 254; i++) {
+                        String testIP = baseIP + i;
+                        try {
+                            Socket socket = new Socket();
+                            socket.connect(new InetSocketAddress(testIP, PUERTO_SERVIDOR), 500);
+                            socket.close();
+                            System.out.println("Servidor encontrado en: " + testIP);
+                            return testIP;
+                        } catch (Exception e) {
+                            // No se puede conectar, continuar
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error en descubrimiento por interfaces: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    // Clase para el lado del servidor que responde al descubrimiento
     public static class ServidorDescubrimiento extends Thread {
         private DatagramSocket socket;
         private int puerto;
@@ -72,8 +154,9 @@ public class ServerDiscovery {
                 socket = new DatagramSocket(puerto);
                 socket.setBroadcast(true);
 
+                System.out.println("Servidor de descubrimiento iniciado en puerto " + puerto);
+
                 while (!isInterrupted()) {
-                    // Preparar buffer para recibir mensaje de descubrimiento
                     byte[] bufferRecepcion = new byte[256];
                     DatagramPacket paqueteRecibido = new DatagramPacket(
                         bufferRecepcion, 
@@ -90,9 +173,13 @@ public class ServerDiscovery {
                         paqueteRecibido.getLength()
                     ).trim();
 
+                    System.out.println("Mensaje recibido: " + mensajeRecibido);
+
                     if ("Servidor_Descubierto".equals(mensajeRecibido)) {
                         // Obtener la dirección IP local
-                        String miDireccionIP = InetAddress.getLocalHost().getHostAddress();
+                        String miDireccionIP = obtenerIPLocal();
+
+                        System.out.println("Respondiendo con IP: " + miDireccionIP);
 
                         // Responder al cliente con mi dirección IP
                         byte[] respuesta = miDireccionIP.getBytes();
@@ -104,16 +191,41 @@ public class ServerDiscovery {
                         );
 
                         socket.send(paqueteRespuesta);
-                        System.out.println("Respondiendo a solicitud de descubrimiento desde " + 
-                            paqueteRecibido.getAddress());
                     }
                 }
             } catch (IOException e) {
+                System.out.println("Error en servidor de descubrimiento: " + e.getMessage());
                 e.printStackTrace();
             } finally {
                 if (socket != null && !socket.isClosed()) {
                     socket.close();
                 }
+            }
+        }
+
+        private String obtenerIPLocal() {
+            try {
+                // Intentar obtener IP no loopback
+                Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+                while (interfaces.hasMoreElements()) {
+                    NetworkInterface networkInterface = interfaces.nextElement();
+                    if (networkInterface.isLoopback() || !networkInterface.isUp()) {
+                        continue;
+                    }
+
+                    for (InterfaceAddress interfaceAddress : networkInterface.getInterfaceAddresses()) {
+                        InetAddress ip = interfaceAddress.getAddress();
+                        if (ip instanceof Inet4Address && !ip.isLoopbackAddress()) {
+                            return ip.getHostAddress();
+                        }
+                    }
+                }
+                
+                // Fallback a localhost si no se encuentra otra IP
+                return InetAddress.getLocalHost().getHostAddress();
+            } catch (Exception e) {
+                System.out.println("Error obteniendo IP local: " + e.getMessage());
+                return "127.0.0.1";
             }
         }
     }
