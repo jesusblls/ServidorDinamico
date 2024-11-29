@@ -1,77 +1,46 @@
 package test;
 
-import java.io.*;
-import java.net.*;
-import java.util.concurrent.*;
+import oshi.SystemInfo;
+import oshi.hardware.CentralProcessor;
+import oshi.hardware.GlobalMemory;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Host implements Runnable {
-    private static final int PORT = 5432;
-    private static int currentHostScore = SystemEvaluator.calculateSystemScore();
-    private static ServerSocket serverSocket;
-    private static final ConcurrentHashMap<Socket, PrintWriter> clients = new ConcurrentHashMap<>();
+    private static final int PORT = 12345;
 
     @Override
     public void run() {
         try {
-            serverSocket = new ServerSocket(PORT);
-            System.out.println("Servidor iniciado. Esperando conexiones...");
+            // Inicializa el servidor
+            ServerSocket serverSocket = new ServerSocket(PORT);
+            System.out.println("Host iniciado. Esperando clientes...");
+
+            // Executor para manejar conexiones de clientes
+            ExecutorService executor = Executors.newFixedThreadPool(10);
 
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("Cliente conectado: " + clientSocket.getInetAddress().getHostAddress());
-                handleClient(clientSocket);
+                executor.submit(new ClienteHandler(clientSocket));
             }
         } catch (IOException e) {
-            System.out.println("Error en el servidor: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    private void handleClient(Socket clientSocket) {
-        try {
-            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+    public static int calcularPuntaje() {
+        SystemInfo si = new SystemInfo();
+        CentralProcessor processor = si.getHardware().getProcessor();
+        GlobalMemory memory = si.getHardware().getMemory();
 
-            clients.put(clientSocket, out);
+        // Obtenemos la carga de la CPU y la memoria
+        double cpuLoad = processor.getSystemCpuLoad(0);
+        double ram = memory.getTotal() / 1024.0 / 1024.0 / 1024.0; // GB
 
-            String message;
-            while ((message = in.readLine()) != null) {
-                if (message.startsWith("CLIENT_SCORE:")) {
-                    int clientScore = Integer.parseInt(message.split(":")[1]);
-                    evaluateClient(clientScore, clientSocket);
-                }
-            }
-        } catch (IOException e) {
-            System.out.println("Cliente desconectado: " + clientSocket.getInetAddress().getHostAddress());
-        } finally {
-            clients.remove(clientSocket);
-            try {
-                clientSocket.close();
-            } catch (IOException ignored) {
-            }
-        }
-    }
-
-    private synchronized void evaluateClient(int clientScore, Socket clientSocket) {
-        if (clientScore > currentHostScore) {
-            System.out.println("Un cliente tiene mejores prestaciones. Cambiando de host...");
-            currentHostScore = clientScore;
-
-            String newHostAddress = clientSocket.getInetAddress().getHostAddress();
-            notifyClientsAboutNewHost(newHostAddress);
-
-            try {
-                serverSocket.close(); // Detener el servidor actual
-                System.out.println("Servidor detenido. El nuevo host es: " + newHostAddress);
-            } catch (IOException e) {
-                System.out.println("Error al detener el servidor: " + e.getMessage());
-            }
-        }
-    }
-
-    private void notifyClientsAboutNewHost(String newHostAddress) {
-        for (PrintWriter out : clients.values()) {
-            out.println("NEW_HOST:" + newHostAddress);
-        }
+        // Calcular un puntaje simple basado en CPU y RAM
+        return (int) ((1 - cpuLoad) * 100 + ram * 10);
     }
 }
-
