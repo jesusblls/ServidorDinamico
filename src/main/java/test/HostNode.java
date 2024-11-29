@@ -136,9 +136,11 @@ public class HostNode extends Thread {
             serverSocket.close();
             // Interrumpir el hilo del anterior host
             this.interrupt();
+            // Esperar un momento para asegurarse de que el nuevo host esté listo
+            Thread.sleep(10000);
             // Iniciar el proceso de cliente para reconectar al nuevo host
             iniciarProcesoCliente();
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }

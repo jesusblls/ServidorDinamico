@@ -115,8 +115,10 @@ public class ClientNode extends Thread {
                 return;
             }
             socketServidor.close();
+            // Esperar un momento para asegurarse de que el nuevo host esté listo
+            Thread.sleep(2000);
             socketServidor = new Socket(nuevaIp, 5000);
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }
