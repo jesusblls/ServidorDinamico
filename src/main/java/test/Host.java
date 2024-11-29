@@ -8,7 +8,8 @@ import java.util.List;
 public class Host implements Runnable {
     private static List<ClientHandler> clients = new ArrayList<>();
     private static int currentHostScore = 0;
-    private boolean running = true;
+    private volatile boolean running = true;
+    private ServerSocket serverSocket;
 
     @Override
     public void run() {
@@ -16,18 +17,24 @@ public class Host implements Runnable {
             currentHostScore = SystemEvaluator.calculateSystemScore();
             System.out.println("Iniciando como Host con puntaje: " + currentHostScore);
 
-            ServerSocket serverSocket = new ServerSocket(5432);
+            serverSocket = new ServerSocket(5432);
             System.out.println("Host escuchando en el puerto 5432");
 
             while (running) {
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("Nuevo cliente conectado: " + clientSocket.getInetAddress());
-                ClientHandler clientHandler = new ClientHandler(clientSocket);
-                clients.add(clientHandler);
-                new Thread(clientHandler).start(); // Cada cliente tiene su propio hilo
+                try {
+                    Socket clientSocket = serverSocket.accept();
+                    System.out.println("Nuevo cliente conectado: " + clientSocket.getInetAddress());
+                    ClientHandler clientHandler = new ClientHandler(clientSocket);
+                    clients.add(clientHandler);
+                    new Thread(clientHandler).start();
+                } catch (SocketException e) {
+                    if (!running) {
+                        System.out.println("El servidor se detuvo.");
+                    } else {
+                        throw e;
+                    }
+                }
             }
-
-            serverSocket.close(); // Cerrar el servidor cuando se detiene
         } catch (IOException e) {
             System.out.println("Error en el host: " + e.getMessage());
         }
@@ -38,8 +45,8 @@ public class Host implements Runnable {
             System.out.println("Un cliente tiene mejores prestaciones. Cambiando de host...");
             currentHostScore = clientScore;
 
-            // Esperar antes de notificar el cambio de host
-            notifyClientsAboutNewHost(clientSocket.getInetAddress().getHostAddress());
+            String newHostAddress = clientSocket.getInetAddress().getHostAddress();
+            notifyClientsAboutNewHost(newHostAddress);
         }
     }
 
@@ -52,6 +59,13 @@ public class Host implements Runnable {
 
     public void detener() {
         running = false;
+        try {
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+        } catch (IOException e) {
+            System.out.println("Error al detener el servidor: " + e.getMessage());
+        }
         System.out.println("Servidor detenido.");
     }
 
