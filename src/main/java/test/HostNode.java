@@ -91,7 +91,11 @@ public class HostNode extends Thread {
         double mejorScore = scoreMaquina;
         ClientConnection nuevoHost = null;
 
+        System.out.println("Verificando cambio de host...");
+        System.out.println("Score del host actual: " + scoreMaquina);
+
         for (ClientConnection c : clientes) {
+            System.out.println("Score del cliente " + c.getSocketCliente().getInetAddress() + ": " + c.getScoreCliente());
             if (c.getScoreCliente() > mejorScore) {
                 mejorScore = c.getScoreCliente();
                 nuevoHost = c;
@@ -101,15 +105,24 @@ public class HostNode extends Thread {
         if (nuevoHost != null && nuevoHost != cliente) {
             System.out.println("Nuevo host seleccionado: " + nuevoHost.getSocketCliente().getInetAddress());
             migrarHost(nuevoHost);
+        } else {
+            System.out.println("No se requiere cambio de host.");
         }
     }
 
     private void migrarHost(ClientConnection nuevoHost) {
         // Lógica para migrar todos los clientes al nuevo host
+        System.out.println("Migrando host a: " + nuevoHost.getSocketCliente().getInetAddress());
         for (ClientConnection cliente : clientes) {
             if (cliente != nuevoHost) {
                 enviarMensajeMigracion(cliente, nuevoHost.getSocketCliente().getInetAddress());
             }
+        }
+        // Cerrar el servidor actual
+        try {
+            serverSocket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -117,6 +130,7 @@ public class HostNode extends Thread {
         try {
             DataOutputStream out = new DataOutputStream(cliente.getSocketCliente().getOutputStream());
             out.writeUTF("MIGRAR_HOST:" + nuevaIp.getHostAddress());
+            out.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
