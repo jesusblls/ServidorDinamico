@@ -109,7 +109,7 @@ public class HostNode extends Thread {
 
         System.out.println("Nuevo host seleccionado: " + nuevoHost);
 
-        if (nuevoHost != null && nuevoHost != cliente) {
+        if (nuevoHost != null) {
             System.out.println("Nuevo host seleccionado: " + nuevoHost.getSocketCliente().getInetAddress());
             migrarHost(nuevoHost);
         } else {
