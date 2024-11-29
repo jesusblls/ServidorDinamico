@@ -133,11 +133,14 @@ public class HostNode extends Thread {
         }
         // Cerrar el servidor actual y reconectar al nuevo host
         try {
-            serverSocket.close();
             // Interrumpir el hilo del anterior host
             this.interrupt();
+            // Cerrar el ServerSocket
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
             // Esperar un momento para asegurarse de que el nuevo host esté listo
-            Thread.sleep(10000);
+            Thread.sleep(2000);
             // Iniciar el proceso de cliente para reconectar al nuevo host
             iniciarProcesoCliente();
         } catch (IOException | InterruptedException e) {
@@ -158,12 +161,10 @@ public class HostNode extends Thread {
     private void iniciarProcesoCliente() {
         new Thread(() -> {
             try {
-                // Esperar un momento para asegurarse de que el nuevo host esté listo
-                Thread.sleep(2000);
                 // Iniciar el proceso de cliente
                 ClientNode clientNode = new ClientNode();
                 clientNode.start();
-            } catch (InterruptedException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }).start();
