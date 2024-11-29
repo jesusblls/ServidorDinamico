@@ -36,6 +36,7 @@ public class Client implements Runnable {
                             return;
                         } else {
                             hostAddress = newHostAddress;
+                            break; // Intentar reconectar con el nuevo host.
                         }
                     }
                 }
@@ -52,6 +53,7 @@ public class Client implements Runnable {
 
     private void iniciarComoHost() {
         Host newHost = new Host();
+        Host.stopHost(null); // Asegurarse de que no haya un servidor activo.
         Thread hostThread = new Thread(newHost);
         hostThread.start();
     }
@@ -62,3 +64,4 @@ public class Client implements Runnable {
         }
     }
 }
+

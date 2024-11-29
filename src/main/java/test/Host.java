@@ -2,14 +2,19 @@ package test;
 
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class Host implements Runnable {
     private static List<ClientHandler> clients = new ArrayList<>();
     private static int currentHostScore = 0;
     private volatile boolean running = true;
     private ServerSocket serverSocket;
+
+    public static void stopHost(Host hostInstance) {
+        if (hostInstance != null) {
+            hostInstance.stopServer();
+        }
+    }
 
     @Override
     public void run() {
@@ -29,7 +34,7 @@ public class Host implements Runnable {
                     new Thread(clientHandler).start();
                 } catch (SocketException e) {
                     if (!running) {
-                        System.out.println("El servidor se detuvo.");
+                        System.out.println("El servidor ha sido detenido.");
                     } else {
                         throw e;
                     }
@@ -37,6 +42,17 @@ public class Host implements Runnable {
             }
         } catch (IOException e) {
             System.out.println("Error en el host: " + e.getMessage());
+        }
+    }
+
+    public void stopServer() {
+        running = false;
+        try {
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+        } catch (IOException e) {
+            System.out.println("Error al detener el servidor: " + e.getMessage());
         }
     }
 
@@ -55,18 +71,6 @@ public class Host implements Runnable {
             client.notifyHostChange(newHostAddress);
         }
         System.out.println("Todos los clientes han sido notificados del nuevo host: " + newHostAddress);
-    }
-
-    public void detener() {
-        running = false;
-        try {
-            if (serverSocket != null && !serverSocket.isClosed()) {
-                serverSocket.close();
-            }
-        } catch (IOException e) {
-            System.out.println("Error al detener el servidor: " + e.getMessage());
-        }
-        System.out.println("Servidor detenido.");
     }
 
     private static class ClientHandler implements Runnable {
