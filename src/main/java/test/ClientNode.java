@@ -122,10 +122,15 @@ public class ClientNode extends Thread {
                 new HostNode().start();
                 return;
             }
-            socketServidor.close();
+            if (socketServidor != null && !socketServidor.isClosed()) {
+                socketServidor.close();
+            }
             // Esperar un momento para asegurarse de que el nuevo host esté listo
             Thread.sleep(2000);
             socketServidor = new Socket(nuevaIp, 5000);
+            // Reenviar score de máquina al nuevo host
+            DataOutputStream out = new DataOutputStream(socketServidor.getOutputStream());
+            out.writeDouble(scoreMaquina);
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
