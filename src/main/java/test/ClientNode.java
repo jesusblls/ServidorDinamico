@@ -100,8 +100,8 @@ public class ClientNode extends Thread {
                     while (true) {
                         String mensaje = in.readUTF();
                         if (mensaje.startsWith("MIGRAR_HOST:")) {
-                            String nuevaIp = mensaje.split(":")[1];
-                            reconectarNuevoHost(nuevaIp);
+                            String nuevaIpMensaje = mensaje.split(":")[1];
+                            reconectarNuevoHost(nuevaIpMensaje);
                         }
                     }
                 } catch (IOException e) {
@@ -131,6 +131,21 @@ public class ClientNode extends Thread {
             // Reenviar score de máquina al nuevo host
             DataOutputStream out = new DataOutputStream(socketServidor.getOutputStream());
             out.writeDouble(scoreMaquina);
+            // Reiniciar el hilo de escucha de mensajes del servidor
+            new Thread(() -> {
+                try {
+                    DataInputStream in = new DataInputStream(socketServidor.getInputStream());
+                    while (true) {
+                        String mensaje = in.readUTF();
+                        if (mensaje.startsWith("MIGRAR_HOST:")) {
+                            String nuevaIpMensaje = mensaje.split(":")[1];
+                            reconectarNuevoHost(nuevaIpMensaje);
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }).start();
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
