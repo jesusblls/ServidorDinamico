@@ -95,12 +95,19 @@ public class HostNode extends Thread {
         System.out.println("Score del host actual: " + scoreMaquina);
 
         for (ClientConnection c : clientes) {
-            System.out.println("Score del cliente " + c.getSocketCliente().getInetAddress() + ": " + c.getScoreCliente());
-            if (c.getScoreCliente() > mejorScore) {
-                mejorScore = c.getScoreCliente();
+            double scoreClienteActual = c.getScoreCliente();
+            System.out.println("Score del cliente " + c.getSocketCliente().getInetAddress() + ": " + scoreClienteActual);
+            System.out.println("Mejor score actual: " + mejorScore);
+            // verificar si el cliente tiene un puntaje mayor y retornar true en consola
+            System.out.println(scoreCliente > mejorScore);
+            if (scoreCliente > mejorScore) {
+                System.out.println("Nuevo mejor score: " + scoreCliente);
+                mejorScore = scoreCliente;
                 nuevoHost = c;
             }
         }
+
+        System.out.println("Nuevo host seleccionado: " + nuevoHost);
 
         if (nuevoHost != null && nuevoHost != cliente) {
             System.out.println("Nuevo host seleccionado: " + nuevoHost.getSocketCliente().getInetAddress());
