@@ -1,7 +1,7 @@
 package test;
 
 import java.io.*;
-import java.net.Socket;
+import java.net.*;
 
 public class Client implements Runnable {
     private String hostAddress;
@@ -21,6 +21,7 @@ public class Client implements Runnable {
 
                 System.out.println("Conectado al host: " + hostAddress);
 
+                // Enviar el puntaje del cliente
                 int clientScore = SystemEvaluator.calculateSystemScore();
                 out.println("CLIENT_SCORE:" + clientScore);
 
@@ -32,11 +33,12 @@ public class Client implements Runnable {
 
                         if (newHostAddress.equals(getLocalIPAddress())) {
                             System.out.println("Convirtiéndome en el nuevo host...");
-                            iniciarComoHost();
+                            Host newHost = new Host();
+                            new Thread(newHost).start();
                             return;
                         } else {
                             hostAddress = newHostAddress;
-                            break; // Intentar reconectar con el nuevo host.
+                            break;
                         }
                     }
                 }
@@ -51,17 +53,17 @@ public class Client implements Runnable {
         }
     }
 
-    private void iniciarComoHost() {
-        Host newHost = new Host();
-        Host.stopHost(null); // Asegurarse de que no haya un servidor activo.
-        Thread hostThread = new Thread(newHost);
-        hostThread.start();
-    }
-
-    private String getLocalIPAddress() throws IOException {
-        try (Socket socket = new Socket("8.8.8.8", 10002)) {
-            return socket.getLocalAddress().getHostAddress();
+    private String getLocalIPAddress() {
+        try {
+            InetAddress localhost = InetAddress.getLocalHost();
+            System.out.println(localhost.getHostAddress());
+            return localhost.getHostAddress().trim();
+        } catch (UnknownHostException e) {
+            System.out.println("Error obteniendo la dirección IP local: " + e.getMessage());
+            return "127.0.0.1"; // Dirección IP de fallback en caso de error
         }
     }
+
 }
+
 

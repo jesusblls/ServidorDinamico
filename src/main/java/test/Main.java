@@ -7,22 +7,24 @@ public class Main {
         Scanner scanner = new Scanner(System.in);
 
         System.out.println("¿Quieres ser Host o Cliente? (0/1):");
-        String role = scanner.nextLine().trim().toLowerCase();
+        int choice = scanner.nextInt();
 
-        try {
-            if (role.equals("0")) {
+        if (choice == 0) {
+            try {
                 Host host = new Host();
-                host.run();
-            } else if (role.equals("1")) {
-                System.out.println("Ingresa la dirección IP del host:");
-                String hostAddress = scanner.nextLine().trim();
-                Client client = new Client(hostAddress);
-                client.run();
-            } else {
-                System.out.println("Entrada no válida. Reinicia el programa e intenta de nuevo.");
+                new Thread(host).start();
+            } catch (Exception e) {
+                System.out.println("Error al iniciar como host: " + e.getMessage());
             }
-        } catch (Exception e) {
-            System.err.println("Ocurrió un error: " + e.getMessage());
+        } else {
+            scanner.nextLine(); // Limpiar el buffer
+            System.out.println("Ingresa la dirección IP del host:");
+            String hostAddress = scanner.nextLine();
+
+            Client client = new Client(hostAddress);
+            new Thread(client).start();
         }
+
+        scanner.close();
     }
 }

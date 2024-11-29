@@ -2,105 +2,75 @@ package test;
 
 import java.io.*;
 import java.net.*;
-import java.util.*;
+import java.util.concurrent.*;
 
 public class Host implements Runnable {
-    private static List<ClientHandler> clients = new ArrayList<>();
-    private static int currentHostScore = 0;
-    private volatile boolean running = true;
-    private ServerSocket serverSocket;
-
-    public static void stopHost(Host hostInstance) {
-        if (hostInstance != null) {
-            hostInstance.stopServer();
-        }
-    }
+    private static final int PORT = 5432;
+    private static int currentHostScore = SystemEvaluator.calculateSystemScore();
+    private static ServerSocket serverSocket;
+    private static final ConcurrentHashMap<Socket, PrintWriter> clients = new ConcurrentHashMap<>();
 
     @Override
     public void run() {
         try {
-            currentHostScore = SystemEvaluator.calculateSystemScore();
-            System.out.println("Iniciando como Host con puntaje: " + currentHostScore);
+            serverSocket = new ServerSocket(PORT);
+            System.out.println("Servidor iniciado. Esperando conexiones...");
 
-            serverSocket = new ServerSocket(5432);
-            System.out.println("Host escuchando en el puerto 5432");
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("Cliente conectado: " + clientSocket.getInetAddress().getHostAddress());
+                handleClient(clientSocket);
+            }
+        } catch (IOException e) {
+            System.out.println("Error en el servidor: " + e.getMessage());
+        }
+    }
 
-            while (running) {
-                try {
-                    Socket clientSocket = serverSocket.accept();
-                    System.out.println("Nuevo cliente conectado: " + clientSocket.getInetAddress());
-                    ClientHandler clientHandler = new ClientHandler(clientSocket);
-                    clients.add(clientHandler);
-                    new Thread(clientHandler).start();
-                } catch (SocketException e) {
-                    if (!running) {
-                        System.out.println("El servidor ha sido detenido.");
-                    } else {
-                        throw e;
-                    }
+    private void handleClient(Socket clientSocket) {
+        try {
+            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+
+            clients.put(clientSocket, out);
+
+            String message;
+            while ((message = in.readLine()) != null) {
+                if (message.startsWith("CLIENT_SCORE:")) {
+                    int clientScore = Integer.parseInt(message.split(":")[1]);
+                    evaluateClient(clientScore, clientSocket);
                 }
             }
         } catch (IOException e) {
-            System.out.println("Error en el host: " + e.getMessage());
-        }
-    }
-
-    public void stopServer() {
-        running = false;
-        try {
-            if (serverSocket != null && !serverSocket.isClosed()) {
-                serverSocket.close();
+            System.out.println("Cliente desconectado: " + clientSocket.getInetAddress().getHostAddress());
+        } finally {
+            clients.remove(clientSocket);
+            try {
+                clientSocket.close();
+            } catch (IOException ignored) {
             }
-        } catch (IOException e) {
-            System.out.println("Error al detener el servidor: " + e.getMessage());
         }
     }
 
-    public synchronized static void evaluateClient(int clientScore, Socket clientSocket) {
+    private synchronized void evaluateClient(int clientScore, Socket clientSocket) {
         if (clientScore > currentHostScore) {
             System.out.println("Un cliente tiene mejores prestaciones. Cambiando de host...");
             currentHostScore = clientScore;
 
             String newHostAddress = clientSocket.getInetAddress().getHostAddress();
             notifyClientsAboutNewHost(newHostAddress);
-        }
-    }
 
-    private static void notifyClientsAboutNewHost(String newHostAddress) {
-        for (ClientHandler client : clients) {
-            client.notifyHostChange(newHostAddress);
-        }
-        System.out.println("Todos los clientes han sido notificados del nuevo host: " + newHostAddress);
-    }
-
-    private static class ClientHandler implements Runnable {
-        private Socket socket;
-        private PrintWriter out;
-
-        public ClientHandler(Socket socket) {
-            this.socket = socket;
-        }
-
-        @Override
-        public void run() {
-            try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-                out = new PrintWriter(socket.getOutputStream(), true);
-
-                String clientInfo = in.readLine();
-                System.out.println("Información del cliente: " + clientInfo);
-
-                int clientScore = Integer.parseInt(clientInfo.split(":")[1]);
-                Host.evaluateClient(clientScore, socket);
-
+            try {
+                serverSocket.close(); // Detener el servidor actual
+                System.out.println("Servidor detenido. El nuevo host es: " + newHostAddress);
             } catch (IOException e) {
-                System.out.println("Error manejando cliente: " + e.getMessage());
+                System.out.println("Error al detener el servidor: " + e.getMessage());
             }
         }
+    }
 
-        public void notifyHostChange(String newHost) {
-            if (out != null) {
-                out.println("NEW_HOST:" + newHost);
-            }
+    private void notifyClientsAboutNewHost(String newHostAddress) {
+        for (PrintWriter out : clients.values()) {
+            out.println("NEW_HOST:" + newHostAddress);
         }
     }
 }
