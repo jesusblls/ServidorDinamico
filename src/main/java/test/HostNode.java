@@ -136,8 +136,8 @@ public class HostNode extends Thread {
             serverSocket.close();
             // Interrumpir el hilo del anterior host
             this.interrupt();
-            // Reconectar al nuevo host
-            reconectarNuevoHost(nuevoHost.getSocketCliente().getInetAddress().getHostAddress());
+            // Iniciar el proceso de cliente para reconectar al nuevo host
+            iniciarProcesoCliente();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -153,15 +153,17 @@ public class HostNode extends Thread {
         }
     }
 
-    private void reconectarNuevoHost(String nuevaIp) {
-        try {
-            Socket nuevoSocket = new Socket(nuevaIp, 5000);
-            DataOutputStream out = new DataOutputStream(nuevoSocket.getOutputStream());
-            out.writeDouble(scoreMaquina);
-            out.flush();
-            System.out.println("Reconectado al nuevo host en: " + nuevaIp);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private void iniciarProcesoCliente() {
+        new Thread(() -> {
+            try {
+                // Esperar un momento para asegurarse de que el nuevo host esté listo
+                Thread.sleep(2000);
+                // Iniciar el proceso de cliente
+                ClientNode clientNode = new ClientNode();
+                clientNode.start();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 }
