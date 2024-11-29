@@ -22,6 +22,7 @@ public class HostNode extends Thread {
     private int puerto = 5000;
     private SystemInfo systemInfo;
     private double scoreMaquina;
+    private ScheduledExecutorService scheduler;
 
     public HostNode() {
         systemInfo = new SystemInfo();
@@ -30,7 +31,7 @@ public class HostNode extends Thread {
         new ServerDiscovery.ServidorDescubrimiento(2345).start();
         
         // Recalcular el puntaje del host periódicamente
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(this::calcularScoreMaquina, 0, 1, TimeUnit.MINUTES);
     }
 
@@ -147,6 +148,8 @@ public class HostNode extends Thread {
             if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
             }
+            // Detener el scheduler
+            detenerScheduler();
             // Esperar un momento para asegurarse de que el nuevo host esté listo
             Thread.sleep(2000);
             // Iniciar el proceso de cliente para reconectar al nuevo host
@@ -176,5 +179,18 @@ public class HostNode extends Thread {
                 e.printStackTrace();
             }
         }).start();
+    }
+
+    private void detenerScheduler() {
+        if (scheduler != null && !scheduler.isShutdown()) {
+            scheduler.shutdown();
+            try {
+                if (!scheduler.awaitTermination(1, TimeUnit.SECONDS)) {
+                    scheduler.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                scheduler.shutdownNow();
+            }
+        }
     }
 }
