@@ -99,10 +99,10 @@ public class HostNode extends Thread {
             System.out.println("Score del cliente " + c.getSocketCliente().getInetAddress() + ": " + scoreClienteActual);
             System.out.println("Mejor score actual: " + mejorScore);
             // verificar si el cliente tiene un puntaje mayor y retornar true en consola
-            System.out.println(scoreCliente > mejorScore);
-            if (scoreCliente > mejorScore) {
-                System.out.println("Nuevo mejor score: " + scoreCliente);
-                mejorScore = scoreCliente;
+            System.out.println(scoreClienteActual > mejorScore);
+            if (scoreClienteActual > mejorScore) {
+                System.out.println("Nuevo mejor score: " + scoreClienteActual);
+                mejorScore = scoreClienteActual;
                 nuevoHost = c;
             }
         }
@@ -125,9 +125,10 @@ public class HostNode extends Thread {
                 enviarMensajeMigracion(cliente, nuevoHost.getSocketCliente().getInetAddress());
             }
         }
-        // Cerrar el servidor actual
+        // Cerrar el servidor actual y reconectar al nuevo host
         try {
             serverSocket.close();
+            reconectarNuevoHost(nuevoHost.getSocketCliente().getInetAddress().getHostAddress());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -138,6 +139,18 @@ public class HostNode extends Thread {
             DataOutputStream out = new DataOutputStream(cliente.getSocketCliente().getOutputStream());
             out.writeUTF("MIGRAR_HOST:" + nuevaIp.getHostAddress());
             out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void reconectarNuevoHost(String nuevaIp) {
+        try {
+            Socket nuevoSocket = new Socket(nuevaIp, 5000);
+            DataOutputStream out = new DataOutputStream(nuevoSocket.getOutputStream());
+            out.writeDouble(scoreMaquina);
+            out.flush();
+            System.out.println("Reconectado al nuevo host en: " + nuevaIp);
         } catch (IOException e) {
             e.printStackTrace();
         }

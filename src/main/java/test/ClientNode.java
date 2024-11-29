@@ -3,6 +3,7 @@ package test;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.util.List;
 
@@ -15,10 +16,12 @@ public class ClientNode extends Thread {
     private Socket socketServidor;
     private double scoreMaquina;
     private SystemInfo systemInfo;
+    private String ipLocal;
 
     public ClientNode() {
         systemInfo = new SystemInfo();
         calcularScoreMaquina();
+        ipLocal = obtenerIPLocal();
     }
 
     private void calcularScoreMaquina() {
@@ -53,6 +56,15 @@ public class ClientNode extends Thread {
                     .mapToDouble(red -> red.getBytesRecv() + red.getBytesSent())
                     .average()
                     .orElse(0.0);
+    }
+
+    private String obtenerIPLocal() {
+        try {
+            return InetAddress.getLocalHost().getHostAddress();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "127.0.0.1";
+        }
     }
 
     @Override
@@ -96,6 +108,10 @@ public class ClientNode extends Thread {
 
     private void reconectarNuevoHost(String nuevaIp) {
         try {
+            if (nuevaIp.equals(ipLocal)) {
+                System.out.println("Este cliente se ha convertido en el nuevo host.");
+                return;
+            }
             socketServidor.close();
             socketServidor = new Socket(nuevaIp, 5000);
         } catch (IOException e) {
